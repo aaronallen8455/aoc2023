@@ -1,0 +1,14 @@
+{"version": 7,
+ "packagesDir": ".lake/packages",
+ "packages":
+ [{"url": "https://github.com/leanprover/std4",
+   "type": "git",
+   "subDir": null,
+   "rev": "67d522f5bfa9c9e636aed0bb2469a2fa024d4b40",
+   "name": "std",
+   "manifestFile": "lake-manifest.json",
+   "inputRev": "stable",
+   "inherited": false,
+   "configFile": "lakefile.lean"}],
+ "name": "aoc2023",
+ "lakeDir": ".lake"}
