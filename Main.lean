@@ -1,6 +1,8 @@
 import Aoc2023.Day1
 import Aoc2023.Day2
 import Aoc2023.Day3
+import Aoc2023.Day4
+import Aoc2023.Day5
 import Std.Data.String
 
 def main (args : List String) : IO Unit :=
@@ -16,6 +18,8 @@ def main (args : List String) : IO Unit :=
             | "1" => D1.solve
             | "2" => D2.solve
             | "3" => D3.solve
+            | "4" => D4.solve
+            | "5" => D5.solve
             | _ => λ _ _ => ""
       IO.FS.Stream.putStr stdout $ f content part
 
