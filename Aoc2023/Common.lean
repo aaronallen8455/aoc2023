@@ -29,3 +29,8 @@ def til (p : α → α → Bool) (f : α → α) (x : α) : α :=
   let fx := f x
   if p x fx then fx
   else til p f (f x)
+
+def Array.idx (a : Array α) (i : Int) : Option α :=
+  if i < 0 then none else a.get? i.toNat
+
+#eval #[1,2].idx (-1)
