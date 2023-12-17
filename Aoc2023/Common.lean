@@ -23,3 +23,9 @@ def List.mapAccumL (f : σ → α → β × σ) (s : σ) : List α → List β �
     let (b, ss) := f s x
     let (xss, sss) := List.mapAccumL f ss xs
     (b :: xss, sss)
+
+partial
+def til (p : α → α → Bool) (f : α → α) (x : α) : α :=
+  let fx := f x
+  if p x fx then fx
+  else til p f (f x)
