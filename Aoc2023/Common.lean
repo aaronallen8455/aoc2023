@@ -34,3 +34,12 @@ def Array.idx (a : Array α) (i : Int) : Option α :=
   if i < 0 then none else a.get? i.toNat
 
 #eval #[1,2].idx (-1)
+
+partial
+def lcm (a : Nat) (b : Nat) : Nat :=
+  let rec go x y :=
+    match compare x y with
+    | .eq => x
+    | .lt => go (x + a) y
+    | .gt => go x (y + b)
+  go a b

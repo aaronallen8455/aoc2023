@@ -27,41 +27,6 @@ def nav (start : String) (m : Std.HashMap String (String × String)) (d : List C
       | _ => pure ()
   pure n
 
---def trace (start : String) (m : Std.HashMap String (String × String)) (d : List Char) : Id (List String) := do
-  --let mut n := 0
-  --let mut dir := d
-  --let mut loc := start
-  --let mut res := []
-  --let mut zs := 0
-  --while true do
-    --if zs > 3 then break
-    --let (l, r) := m.findD loc ("", "")
-    --match dir with
-    --| [] => dir := d
-    --| c :: dr => do
-      --if loc.takeRight 1 == "Z" then zs := zs + 1
-      --res := loc :: res
-      --dir := dr
-      --n := n + 1
-      --match c with
-      --| 'L' => loc := l
-      --| 'R' => loc := r
-      --| _ => pure ()
-  --pure res
-
--- [JTA, QXA, NBA, BLA, TSA, AAA]
-
-partial
-def lcm (a : Nat) (b : Nat) : Nat :=
-  let rec go x y :=
-    match compare x y with
-    | .eq => x
-    | .lt => go (x + a) y
-    | .gt => go x (y + b)
-  go a b
-
-#eval [(1:Nat),2,3].minimum?
-
 def solve (inp : String) (p : Part) : String :=
   let lns := inp.lines
   let dir := lns.head!.toList
