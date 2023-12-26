@@ -1,3 +1,5 @@
+import Lean.Data.HashSet
+
 inductive Part
   | Part1
   | Part2
@@ -43,3 +45,18 @@ def lcm (a : Nat) (b : Nat) : Nat :=
     | .lt => go (x + a) y
     | .gt => go x (y + b)
   go a b
+
+def Lean.HashSet.intersect [BEq α] [Hashable α] (a : Lean.HashSet α) (b : Lean.HashSet α) : Lean.HashSet α :=
+  Lean.HashSet.empty.insertMany $ a.toList.filter b.contains
+
+instance [Ord α] [Ord β] : Ord (α × β) where
+  compare a b := match compare a.1 b.1 with
+    | .lt => .lt
+    | .gt => .gt
+    | .eq => compare a.2 b.2
+
+
+--instance [Ord α] [Ord β] : LT (α × β) where
+  --lt a b := match compare a b with
+    --| .lt => True
+    --| _ => False
