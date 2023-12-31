@@ -46,6 +46,19 @@ def lcm (a : Nat) (b : Nat) : Nat :=
     | .gt => go x (y + b)
   go a b
 
+partial
+def lcmInt (a : Int) (b : Int) : Int :=
+  if a == 0 || b == 0 then 0 else
+  let isNeg := a * b < 0
+  let rec go x y :=
+    match compare x y with
+    | .eq => x
+    | .lt => go (x + if isNeg then Int.ofNat a.natAbs else a) y
+    | .gt => go x (y + if isNeg then Int.ofNat b.natAbs else b)
+  if isNeg
+  then go (Int.ofNat a.natAbs) (Int.ofNat b.natAbs)
+  else go a b
+
 def Lean.HashSet.intersect [BEq α] [Hashable α] (a : Lean.HashSet α) (b : Lean.HashSet α) : Lean.HashSet α :=
   Lean.HashSet.empty.insertMany $ a.toList.filter b.contains
 

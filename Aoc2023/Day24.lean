@@ -3,6 +3,7 @@ import Aoc2023.Common
 import Std.Data.List.Basic
 import Std.Data.HashMap
 import Std.Data.RBMap
+import Lean.Data.HashSet
 
 namespace D24
 
@@ -10,7 +11,7 @@ structure Pt where
   x : Int
   y : Int
   z : Int
-  deriving Repr
+  deriving Repr, BEq
 
 instance : ToString Pt where
   toString := reprStr
@@ -74,40 +75,60 @@ def addPt (a : Pt) (b : Pt) : Pt :=
   {x := a.x + b.x, y := a.y + b.y, z := a.z + b.z}
 
 def err (a : Pt × Pt) (b : Pt × Pt) : Option Float := do
-  let (_, y) ← inter a b
+  let (x, y) ← inter a b
   let (_, yy) ← inter
     -- segfaults if z field is not assigned...
     ({a.1 with x := a.1.z, z := a.1.x}, {a.2 with x := a.2.z, z := a.2.x})
     ({b.1 with x := b.1.z, z := b.1.x}, {b.2 with x := b.2.z, z := b.2.x})
-  pure $ y - yy
+  let (xx, _) ← inter
+    -- segfaults if z field is not assigned...
+    ({a.1 with y := a.1.z, z := a.1.y}, {a.2 with y := a.2.z, z := a.2.y})
+    ({b.1 with y := b.1.z, z := b.1.y}, {b.2 with y := b.2.z, z := b.2.y})
+  pure $ Float.abs (y - yy) + Float.abs (x - xx)
 
 def mkLine (a : Pt) (b : Pt) : (Pt × Pt) :=
   (a, {x := b.x - a.x, y := b.y - a.y, z := b.z - a.z})
 
-partial
-def search2 (lp : Pt) (r : Pt × Pt) (pol : Bool) (rv : Pt) (rp : Pt) (ps : List (Pt × Pt)) (pprev : Float) (prev : Float) : Float × Pt :=
-  let ln := mkLine lp rp
-  let e := (List.sum (ps.filterMap (err ln))) / Float.ofNat ps.length
-  if dbgTraceVal e == 0 then (0, rp)
-  else if e == pprev then (min e prev, rp)
-  else if e ≥ prev then
-    let v := if pol then r.2 else scale r.2 (-1)
-    search2 lp r (not pol) v (addPt v rp) ps prev e
-  else
-    let v := scale rv 2
-    search2 lp r pol v (addPt v rp) ps prev e
+def dist (a : Pt × Pt) (b : Pt × Pt) : Option Float := do
+  let (x, _) ← inter a b
+  let diffXA := x - Float.ofInt a.1.x
+  let ma := diffXA / Float.ofInt a.2.x
+  let aZ := ma * Float.ofInt a.2.z + Float.ofInt a.1.z
+  let diffXB := x - Float.ofInt b.1.x
+  let mb := diffXB / Float.ofInt b.2.x
+  let bZ := mb * Float.ofInt b.2.z + Float.ofInt b.1.z
+  (aZ - bZ).abs
 
 partial
-def search1 (l : Pt × Pt) (pol : Bool) (lv : Pt) (lp : Pt) (r : Pt × Pt) (rp : Pt) (ps : List (Pt × Pt)) (pprev : Float) (prev : Float) : Option (Pt × Pt) :=
-  let (e, nrp) := search2 lp r false r.2 rp ps 0 0
-  if e == 0 then mkLine lp nrp
-  else if e == pprev then none
+def search2 (lp : Pt) (r : Pt × Pt) (rv : Pt) (rp : Pt) (ps : List (Pt × Pt)) (prev : Float) : Float × Pt :=
+  let ln := mkLine lp rp
+  let e := (List.sum (ps.filterMap (dist ln))) / Float.ofNat ps.length
+  if e == 0 then (0, rp)
+  -- else if e == pprev then (min e prev, rp)
   else if e ≥ prev then
-    let v := if pol then l.1 else scale r.1 (-1)
-    search1 l (not pol) v (addPt v lp) r nrp ps prev e
+    if rv == r.2 then dbgTrace (toString e) λ _ => (min e prev, rp) else
+    let v := r.2
+    if v == rv then
+      search2 lp r v (addPt v rp) ps prev
+      else search2 lp r v (addPt v $ addPt (scale rv (-1)) rp) ps prev
+  else
+    let v := scale rv 2
+    search2 lp r v (addPt v rp) ps e
+
+partial
+def search1 (l : Pt × Pt) (lv : Pt) (lp : Pt) (r : Pt × Pt) (ps : List (Pt × Pt)) (prev : Float) : Option (Pt × Pt) :=
+  let (e, nrp) := search2 lp r r.2 r.1 ps 99999999999999999999999
+  if e == 0 then mkLine lp nrp
+  else if e ≥ prev then
+    --if lv == l.2 then none else
+    let v := l.2
+    if v == lv then
+      search1 l v (addPt v lp) r ps prev
+      else
+      search1 l v (addPt v $ addPt (scale lv (-1)) lp) r ps prev
   else
     let v := scale lv 2
-    search1 l pol v (addPt v lp) r nrp ps prev e
+    search1 l v (addPt v lp) r ps e
 
 def inter3D (a : Pt × Pt) (b : Pt × Pt) : Option (Float × Float × Float) := do
   let (x, y) ← inter a b
@@ -118,7 +139,44 @@ def inter3D (a : Pt × Pt) (b : Pt × Pt) : Option (Float × Float × Float) := 
   guard $ y == yy
   pure (x, y, z)
 
-#eval inter3D ({x:=-1,y:=-2,z:=-3},{x:=1,y:=2,z:=3}) ({x:=-2,y:=2,z:=-5},{x:=2,y:=-2,z:=5})
+def viable (can : Pt × Pt) (l : Pt × Pt) : Bool := flip Option.getD false $ do
+  let i ← inter can l
+  notInPast l i -- && notInPast can i
+
+def findCycle (s : Int) (ln : Int × Int) : Id (Lean.HashSet Int) := do
+  let mut seen := Lean.HashSet.empty
+  let mut i := 0
+  repeat
+    let v := ln.1 * i + ln.2 - s * i -- (ln.1 - s) * i + ln.2
+    -- will then have two things of the form
+    -- (ln.1 - s) * i + ln.2
+    -- need to find if there is some value of i1 and i2 that make them equal
+    -- and what that value is.
+    -- (ln1.1 - s) * i1 + ln1.2 = (ln2.1 - s) * i2 + ln2.2
+    -- i1 = ((ln2.1 - s) * i2 + ln2.2 - ln1.2) / (ln1.1 - s)
+    if seen.contains v then break
+    seen := seen.insert v
+    i := i + 1
+  seen
+
+partial
+def interCs (a : Int × Int) (b : Int × Int) : Option (Int × Int) :=
+  let newM := lcmInt a.1 b.1
+  let g := a.1.natAbs.gcd b.1.natAbs
+  if (b.2 - a.2).mod g == 0
+  then
+    let rec go x :=
+      if x.mod a.1 == 0
+      then some (newM, x + a.2)
+      else go (x + b.1)
+    dbgTrace (toString (a.1, b.1 + b.2 - a.2)) λ _ => go (b.1 + b.2 - a.2)
+  else none
+
+def checkSlope (s : Int) (lns : List (Int × Int)) : Option Int :=
+  let go | (accM, accC), (m, c) => interCs (accM, accC) (m - s, c)
+  Prod.snd <$> lns.foldlM go (1, 0)
+
+#eval checkSlope (-3) [(-2, 19), (-1, 18), (-2, 20), (-1, 12), (1, 20)]
 
 def solve (inp : String) (p : Part) : String :=
   let lns := inp.lines.filterMap parse
@@ -127,11 +185,21 @@ def solve (inp : String) (p : Part) : String :=
       (suf.filter (inRange x)).length
     toString r.sum
   else
-    match lns with
-      | a :: b :: rest =>
-        let r := search1 a false a.2 a.1 b b.1 rest 0 0
-        toString r
-      | _ => "no"
+    let lnss := (lns.toArray.qsort (·.1.x < ·.1.x)).toList
+    match lnss, lnss.reverse with
+      | a :: rest, b :: rest2 =>
+        --let r := search1 a a.2 a.1 b (rest.take 20) 99999999999999999999999
+        --toString r
+        let lp := addPt (scale a.2 1200732622000) a.1
+        let rp := addPt (scale b.2 1) b.1
+        --let lp := addPt (scale a.2 999999000000000000000) a.1
+        --let rp := addPt (scale b.2 10000000000) b.1
+        let ln := mkLine lp rp
+        let rr := rest.filter (viable ln)
+        toString rr.length
+        --let rr := (List.sum (rest.filterMap (dist ln))) / Float.ofNat rest.length
+        --toString rr
+      | _, _ => "no"
     --let r := lns.mapWithPrefixSuffix λ _ x suf =>
       --(suf.filterMap (inter3D x))
     --toString r.join--$ inp.lines.map parse
@@ -189,3 +257,7 @@ def solve (inp : String) (p : Part) : String :=
 -- check error with all other paths and adjust the two points to minimize the
 -- total error across all of them. Should eventually find the lines that
 -- intersects everything.
+--
+-- Maybe try to progressively find a line where the XY intersection with all other lines
+-- are within the future trajectory of that object. Could maybe be useful to narrow down
+-- to ranges that are at least somewhat possible.
