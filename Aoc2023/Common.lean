@@ -49,18 +49,22 @@ def lcm (a : Nat) (b : Nat) : Nat :=
 partial
 def lcmInt (a : Int) (b : Int) : Int :=
   if a == 0 || b == 0 then 0 else
-  let isNeg := a * b < 0
-  let rec go x y :=
-    match compare x y with
-    | .eq => x
-    | .lt => go (x + if isNeg then Int.ofNat a.natAbs else a) y
-    | .gt => go x (y + if isNeg then Int.ofNat b.natAbs else b)
-  if isNeg
-  then go (Int.ofNat a.natAbs) (Int.ofNat b.natAbs)
-  else go a b
+  Int.natAbs $ a.div (Nat.gcd a.natAbs b.natAbs) * b
+  --let isNeg := a * b < 0
+  --let rec go x y :=
+    --match compare x y with
+    --| .eq => x
+    --| .lt => go (x + if isNeg then Int.ofNat a.natAbs else a) y
+    --| .gt => go x (y + if isNeg then Int.ofNat b.natAbs else b)
+  --if isNeg
+  --then go (Int.ofNat a.natAbs) (Int.ofNat b.natAbs)
+  --else go a b
 
 def Lean.HashSet.intersect [BEq α] [Hashable α] (a : Lean.HashSet α) (b : Lean.HashSet α) : Lean.HashSet α :=
   Lean.HashSet.empty.insertMany $ a.toList.filter b.contains
+
+def Lean.HashSet.ofList [BEq α] [Hashable α] (xs : List α) : Lean.HashSet α :=
+  Lean.HashSet.empty.insertMany xs
 
 instance [Ord α] [Ord β] : Ord (α × β) where
   compare a b := match compare a.1 b.1 with
@@ -68,6 +72,10 @@ instance [Ord α] [Ord β] : Ord (α × β) where
     | .gt => .gt
     | .eq => compare a.2 b.2
 
+def floorDiv (a : Int) (b : Int) : Int :=
+  if a.mod b == 0 then a / b else
+  if a < 0 || b < 0 then a / b - 1 else
+  a / b
 
 --instance [Ord α] [Ord β] : LT (α × β) where
   --lt a b := match compare a b with
