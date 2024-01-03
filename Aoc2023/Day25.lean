@@ -44,18 +44,30 @@ def formGroup (g : Graph) : Option Nat := do
     if fringe.isEmpty then break
   some 0
 
-#check Std.RBSet.intersectWith
+def progress (f : Std.RBMap String Nat compare) : List (List String) :=
+  let rec go rem
+    | (name, count) :: rest =>
+      if rem == 0 then [name :: rest.map Prod.fst]
+      else
+        if rem - count < 0 then
+          (go rem rest).map (name :: ·)
+        else
+          (go rem rest).map (name :: ·) ++
+          go (rem - count) rest
+    | [] => []
+  go 3 f.toList
 
 def formGroup' (g : Graph) : Option Nat := do
   let (m, _ml) ← g.toList.head?
-  let es := Std.RBMap.single m 1 --Std.RBMap.ofList (ml.toList.map (·, 1)) compare
-  let mut fringe : List (Std.RBSet String compare × Std.RBMap String Nat compare) :=
-    [(Std.RBSet.single m, es)]
-  let mut i := 0
-  let mut commonVisited : Std.RBSet String compare := Std.RBSet.empty
+  let es := Std.RBMap.single m 1
+  let mut fringe : List (Std.RBMap String Nat compare × Std.RBMap String Nat compare) :=
+    [(es, es)]
+  let mut i := 1
   repeat do
+    let mut dedup : Std.RBSet String compare := .empty -- why can't this be in the loop?
     let mut newFringe := []
-    for (visited, edges) in fringe do
+    -- prev could just be the last node added since that's the only difference
+    for (prev, edges) in fringe do
       -- If an edge has > 3 inputs then there's no way those wires could be part of the solution
       -- so go ahead and expand them in every new fringe entry.
       -- seems to be very uncommon
@@ -67,29 +79,24 @@ def formGroup' (g : Graph) : Option Nat := do
       -- Rather than tracking all visited nodes, can track the previous nodes only. Use the new edges
       -- as the means of deduplication.
       -- Optimizations to try
-      -- - Only track previous nodes, not all visited
+      -- - Only track previous nodes, not all visited - doesn't work
       -- - turn the set of new edges into a string which can then be used to dedupe in log time
+      -- - prioritize fewest number of out edges
+      -- - Expand more than 1 node at a time
       for (e, _) in edges do
-        let wires ← ((Std.RBSet.sdiff · visited) ∘ (Std.RBSet.sdiff · commonVisited)) <$> g.find? e
+        let wires ← (Std.RBSet.filter · (λ s => not (prev.contains s)))
+            <$> g.find? e -- slower than using a sdiff
         let ws := Std.RBMap.ofList (wires.toList.map (·, 1)) compare
         let newEdges := (edges.mergeWith (λ _ => (·+·)) ws).erase e
         if newEdges.size == 0 then continue
-        let newVisited := visited.insert e
         if newEdges.valuesList.sum == 3
-          then return newVisited.size
-        -- use new edges instead? Doesn't help
-        -- would it help to make an ord instance for RBSet so this is log instead of linear?
-        if newFringe.any λ (v, _) => v == newVisited then continue
-        newFringe := (newVisited, newEdges) :: newFringe
+          then return i
+        let key := String.join newEdges.keysList
+        if dedup.contains key then continue
+        dedup := dedup.insert key
+        newFringe := dbgTrace (toString newFringe.length) λ _ => (prev.insert e 1, newEdges) :: newFringe
     i := dbgTraceVal $ i + 1
-    if i % 1 == 0 then
-      let common := newFringe.foldl
-            (λ acc (x, _) => if acc.isEmpty then x else Std.RBSet.intersectWith compare (λ y _ => y) x acc)
-            Std.RBSet.empty
-      commonVisited := commonVisited.mergeWith (λ a _ => a) common
-      fringe := newFringe.map λ (v, es) => (v.sdiff common, es)
-    else
-      fringe := newFringe
+    fringe := newFringe
     if fringe.isEmpty then break
   some 0
 
